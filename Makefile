@@ -16,7 +16,7 @@
 
 PREFIX = trutty
 IMAGE = fluentd
-TAG = 0.1
+TAG = 0.2
 
 build:
 	docker build --tag ${PREFIX}/${IMAGE}:${TAG} .
