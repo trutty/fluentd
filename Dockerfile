@@ -1,31 +1,29 @@
-FROM alpine:3.12
+FROM registry.access.redhat.com/ubi8/s2i-base:1
+
+ENV RUBY_VERSION="2.7"
 
 # install dependencies
-COPY Gemfile /Gemfile
-RUN apk update \
- && apk add --no-cache \
-        ca-certificates \
-        ruby ruby-irb ruby-etc ruby-webrick \
-        tini \
- && apk add --no-cache --virtual .build-deps \
-        build-base linux-headers \
-        ruby-dev gnupg \
- && echo 'gem: --no-document' >> /etc/gemrc \
- && gem install --file Gemfile \
- && apk del .build-deps \
- && rm -rf /tmp/* /var/tmp/* /usr/lib/ruby/gems/*/cache/*.gem /usr/lib/ruby/gems/2.*/gems/fluentd-*/test
+COPY Gemfile ./
+RUN yum -y module enable ruby:${RUBY_VERSION} \
+ && yum -y update && yum -y install \
+    ruby \
+    ruby-devel \
+    # required by fluentd plugin 'rewrite_tag_filter'
+    hostname \
+ && yum -y clean all --enablerepo='*' \
+ && gem install --file ./Gemfile \
+ && rm -rf /usr/local/share/gems/cache/
 
-# copy the Fluentd configuration file for logging Docker container logs
+# copy basic Fluentd configuration
 COPY fluent.conf /etc/fluent/fluent.conf
-COPY entrypoint.sh /bin/
 
-ENV LD_PRELOAD=""
 # Expose forward plugin
 EXPOSE 24224
 
-# run as non-root user
-RUN addgroup -S fluent && adduser -S -g fluent -u 1000 fluent
-USER 1000
+# Drop the root user and make the content of /opt/app-root owned by user 1001
+RUN chown -R 1001:0 /opt/app-root && chmod -R ug+rwx /opt/app-root \
+ && rpm-file-permissions
+USER 1001
 
-ENTRYPOINT ["tini",  "--", "/bin/entrypoint.sh"]
-CMD ["fluentd"]
+# start fluentd process
+ENTRYPOINT [ "fluentd" ]
