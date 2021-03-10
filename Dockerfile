@@ -8,8 +8,10 @@ RUN yum -y module enable ruby:${RUBY_VERSION} \
  && yum -y update && yum -y install \
     ruby \
     ruby-devel \
-    # required by fluentd plugin 'rewrite_tag_filter'
+    # required by plugin rewrite_tag_filter
     hostname \
+    # required by plugin fluent-plugin-jq
+    jq \
  && yum -y clean all --enablerepo='*' \
  && gem install --file ./Gemfile \
  && rm -rf /usr/local/share/gems/cache/
